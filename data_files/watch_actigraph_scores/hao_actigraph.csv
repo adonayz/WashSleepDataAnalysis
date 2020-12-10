@@ -1,0 +1,10 @@
+Sleep Report for: C:\Users\Adonay\Desktop\Masters Thesis\GT3X files\hao\agd\TAS1H03200183_2020-06-20___12-15-2860sec.agd
+Subject Name: Scoring Sleep Quality Through Smartphone SNSR Study
+Serial Number: TAS1H03200183
+Sleep Algorithm: Cole-Kripke
+
+Sleep Algorithm,In Bed Date,In Bed Time,Out Bed Date,Out Bed Time,Onset Date,Onset Time,Latency,Total Counts,Efficiency,Total Minutes in Bed,Total Sleep Time (TST),Wake After Sleep Onset (WASO),Number of Awakenings,Average Awakening Length,Movement Index,Fragmentation Index,Sleep Fragmentation Index
+Cole-Kripke,6/19/2020,2:23 AM,6/19/2020,3:23 AM,6/19/2020,2:23 AM,0,2983,95,60,57,3,3,1,35,0,35
+Cole-Kripke,6/19/2020,3:55 AM,6/19/2020,9:23 AM,6/19/2020,3:55 AM,0,13948,92.07,328,302,26,17,1.53,11.585,5.556,17.141
+Cole-Kripke,6/19/2020,9:35 AM,6/19/2020,12:14 PM,6/19/2020,9:35 AM,0,20916,70.44,159,112,47,14,3.36,22.642,13.333,35.975
+Cole-Kripke,6/20/2020,4:16 AM,6/20/2020,10:13 AM,6/20/2020,4:16 AM,0,11763,93.28,357,333,24,11,2.18,9.804,16.667,26.471
