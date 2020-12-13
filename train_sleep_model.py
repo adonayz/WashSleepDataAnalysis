@@ -3,6 +3,12 @@ import pickle
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
 from xgboost import XGBClassifier
 import matplotlib.pyplot as plt
 import sys
@@ -23,30 +29,43 @@ def plot_dataframe(plot_df):
 
 
 def train_data(clf, X, y):
+    print("Splitting into train and test data")
     train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=0.2)
+
+    print("Fitting " + get_classifier_name(clf) + "...")
     clf.fit(train_X, train_y)
+
+    print("Generating prediction...")
     clfPred = clf.predict(test_X)
 
-    from sklearn.metrics import accuracy_score
-
     acc = accuracy_score(test_y, clfPred)
-    print(acc)
+    f1 = f1_score(test_y, clfPred)
+    print('\nAccuracy:', accuracy_score(test_y, clfPred))
+    print('F1 score:', f1_score(test_y, clfPred))
+    print('Recall:', recall_score(test_y, clfPred))
+    print('Precision:', precision_score(test_y, clfPred))
+    print('\n clasification report:\n', classification_report(test_y, clfPred))
+    print('\n confussion matrix:\n', confusion_matrix(test_y, clfPred))
 
     Pkl_Filename = "Pickle_" + get_classifier_name(clf) + ".pkl"
 
     with open(Pkl_Filename, 'wb') as file:
         pickle.dump(clf, file)
 
+
+def load_model(clf, X, y):
+    print("Loading saved " + get_classifier_name(clf) + " model...")
+    Pkl_Filename = "Pickle_" + get_classifier_name(clf) + ".pkl"
     # Load the Model back from file
     with open(Pkl_Filename, 'rb') as file:
         Pickled_Ada_Model = pickle.load(file)
 
-    score = Pickled_Ada_Model.score(test_X, test_y)
+    score = Pickled_Ada_Model.score(X, y)
     # Print the Score
     print("Test score: {0:.2f} %".format(100 * score))
 
     # Predict the Labels using the reloaded Model
-    Ypredict = Pickled_Ada_Model.predict(test_X)
+    Ypredict = Pickled_Ada_Model.predict(X)
 
 
 def generate_training_data():
@@ -79,10 +98,11 @@ def generate_training_data():
     # imp_mean.fit(dataset)
     # dataset[dataset.columns] = imp_mean.transform(dataset)
 
-    dataset = fast_knn(dataset.values, k=30)
-    print("impute finished")
-    
-    # dataset = dataset.fillna(0)
+    # dataset = fast_knn(dataset.values, k=30)
+    # print("impute finished")
+
+    dataset = dataset.fillna(0)
+
     dataset.to_csv(training_dataset_output_path + 'sleep_model_training_data.csv', index=False)
     dataset = dataset.drop(['timestamp'], axis=1)
 
