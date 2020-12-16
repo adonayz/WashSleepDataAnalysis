@@ -187,17 +187,6 @@ def reindex_and_merge_by_timestamp(df_p, df_w):
 
 # return value new_X_list is a list of dataframes which should be matched to each row
 # of the dataframe that is returned as the other value (df_a) for training
-def setup_training_data_for_sleep_model(dic_p, dic_w):
-    df_list = []
-    for subject in subjects:
-        df_list.append(reindex_and_merge_by_timestamp(dic_p[subject], dic_w[subject]))
-
-    final_df = pd.concat(df_list, axis=0, ignore_index=True)
-    # final_df.sort_values('timestamp', inplace=True)
-    final_df['timestamp'] = timestamp_to_epoch(final_df['timestamp'])
-    final_df = final_df.reset_index(drop=True)
-
-    return final_df
 
 
 def load_data():
@@ -232,13 +221,32 @@ def load_data():
     return phone_dic, watch_dic, actigraph_dic
 
 
+def setup_training_data_for_sleep_model(dic_p, dic_w):
+    df_list = []
+    for subject in subjects:
+        df_list.append(reindex_and_merge_by_timestamp(dic_p[subject], dic_w[subject]))
+
+    final_df = pd.concat(df_list, axis=0, ignore_index=True)
+    # final_df.sort_values('timestamp', inplace=True)
+    final_df['timestamp'] = timestamp_to_epoch(final_df['timestamp'])
+    final_df = final_df.reset_index(drop=True)
+
+    return final_df
+
+
+def check_sleep_label_balance(df):
+    print(df.groupby('sleep_or_wake').count())
+
+
 def get_sleep_model_training_data():
     phone_data, watch_data, actigraph_data = load_data()
     return setup_training_data_for_sleep_model(phone_data, watch_data)
 
-# if __name__ == '__main__':
-#     # test_subject = "yosias"
-#     phone_data, watch_data, actigraph_data = load_data()
-#     # X_list, y = setup_training_data_for_actigraph_model(phone_data[test_subject], actigraph_data[test_subject])
-#     # print_data_statistics(phone_data[test_subject], watch_data[test_subject], actigraph_data[test_subject])
-#     print(setup_training_data_for_sleep_model(phone_data, watch_data))
+
+if __name__ == '__main__':
+    df = get_sleep_model_training_data()
+    check_sleep_label_balance(df)
+    # test_subject = "yosias"
+    # phone_data, watch_data, actigraph_data = load_data()
+    # X_list, y = setup_training_data_for_actigraph_model(phone_data[test_subject], actigraph_data[test_subject])
+    # print_data_statistics(phone_data[test_subject], watch_data[test_subject], actigraph_data[test_subject])
