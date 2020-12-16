@@ -9,4 +9,4 @@
 #SBATCH --mail-type=end          # send email when job ends
 #SBATCH --mail-user=azresom@wpi.edu
 
-python train_sleep_model.py
+python train_sleep_model.py > test1.out
