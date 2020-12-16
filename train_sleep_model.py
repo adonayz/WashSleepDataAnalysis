@@ -98,10 +98,10 @@ def generate_training_data():
     # imp_mean.fit(dataset)
     # dataset[dataset.columns] = imp_mean.transform(dataset)
 
-    # dataset = fast_knn(dataset.values, k=30)
-    # print("impute finished")
+    dataset[dataset.columns] = fast_knn(dataset.values, k=30)
+    print("impute finished")
 
-    dataset = dataset.fillna(0)
+    # dataset = dataset.fillna(0)
 
     dataset.to_csv(training_dataset_output_path + 'sleep_model_training_data.csv', index=False)
     dataset = dataset.drop(['timestamp'], axis=1)
