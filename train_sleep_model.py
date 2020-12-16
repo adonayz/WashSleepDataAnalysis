@@ -28,6 +28,12 @@ def plot_dataframe(plot_df):
     plt.show()
 
 
+def save_model(clf):
+    Pkl_Filename = "Pickle_" + get_classifier_name(clf) + ".pkl"
+
+    with open(Pkl_Filename, 'wb') as file:
+        pickle.dump(clf, file)
+
 def train_data(clf, X, y):
     print("Splitting into train and test data")
     train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=0.2)
@@ -47,10 +53,7 @@ def train_data(clf, X, y):
     print('\n clasification report:\n', classification_report(test_y, clfPred))
     print('\n confussion matrix:\n', confusion_matrix(test_y, clfPred))
 
-    Pkl_Filename = "Pickle_" + get_classifier_name(clf) + ".pkl"
-
-    with open(Pkl_Filename, 'wb') as file:
-        pickle.dump(clf, file)
+    # save_model(clf)
 
 
 def load_model(clf, X, y):
@@ -103,7 +106,7 @@ def generate_training_data():
 
     # dataset = dataset.fillna(0)
 
-    dataset.to_csv(training_dataset_output_path + 'sleep_model_training_data.csv', index=False)
+    # dataset.to_csv(training_dataset_output_path + 'sleep_model_training_data.csv', index=False)
     dataset = dataset.drop(['timestamp'], axis=1)
 
     X = dataset.drop(['sleep_or_wake'], axis=1)
