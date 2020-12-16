@@ -13,7 +13,7 @@ from xgboost import XGBClassifier
 import matplotlib.pyplot as plt
 import sys
 import prepare_data
-from impyute.imputation.cs import fast_knn
+from impyute.imputation.cs import mice
 
 sys.setrecursionlimit(100000)  # Increase the recursion limit of the OS
 
@@ -98,7 +98,7 @@ def generate_training_data():
     # imp_mean.fit(dataset)
     # dataset[dataset.columns] = imp_mean.transform(dataset)
 
-    dataset[dataset.columns] = fast_knn(dataset.values, k=30)
+    dataset[dataset.columns] = mice(dataset.values)
     print("impute finished")
 
     # dataset = dataset.fillna(0)
