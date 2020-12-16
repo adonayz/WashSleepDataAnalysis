@@ -34,6 +34,7 @@ def save_model(clf):
     with open(Pkl_Filename, 'wb') as file:
         pickle.dump(clf, file)
 
+
 def train_data(clf, X, y):
     print("Splitting into train and test data")
     train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=0.2)
@@ -94,6 +95,8 @@ def generate_training_data():
     print("Cleaning and preparing dataframe")
 
     dataset['sleep_or_wake'] = (dataset['sleep_or_wake'] == 'S').astype(int)
+
+    dataset = dataset.iloc[0:100]
 
     # handle missing values
     # from sklearn.impute import SimpleImputer
