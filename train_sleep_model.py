@@ -96,8 +96,6 @@ def generate_training_data():
 
     dataset['sleep_or_wake'] = (dataset['sleep_or_wake'] == 'S').astype(int)
 
-    dataset = dataset.iloc[0:1000]
-
     # handle missing values
     # from sklearn.impute import SimpleImputer
     # imp_mean = SimpleImputer( strategy='mean') #for median imputation replace 'mean' with 'median'
