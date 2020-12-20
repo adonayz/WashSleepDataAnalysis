@@ -8,9 +8,8 @@ import csv
 import gzip
 from sklearn.preprocessing import MinMaxScaler
 
-
 # "genoveva" not included because data is mixed up for some days - will fix after looking through notes
-# subjects = ["adonay", "yared"]
+# subjects = ["yared"]
 subjects = ["adonay", "yared", "yosias", "yuxiao"]
 
 phone_data_dir = "data_files/phone_features/"
@@ -188,8 +187,6 @@ def generate_actigraphy_segments(df_p, df_a, subject):
         for idx_p, row_p in df_p.iterrows():
             if start_ts < row_p["timestamp"] < end_ts:
                 new_dfX = new_dfX.append(df_p.iloc[idx_p])
-        new_dfX['timestamp'] = timestamp_to_epoch(new_dfX['timestamp'])
-
         new_dfX = new_dfX.reset_index(drop=True)
         observations_from_phone = new_dfX.shape[0]
         # print("Duration from phone = " + str(observations_from_phone * 60))
@@ -199,11 +196,19 @@ def generate_actigraphy_segments(df_p, df_a, subject):
             if observations_from_phone > max_observations:
                 max_observations = observations_from_phone
 
+            new_dfX['timestamp'] = timestamp_to_epoch(new_dfX['timestamp'])
+
             # impute
             new_dfX = new_dfX.fillna(0)
-            # normalizing
-            scaler = MinMaxScaler(feature_range=(0, 1))
-            new_dfX[new_dfX.columns] = scaler.fit_transform(new_dfX[new_dfX.columns])
+
+            # # normalizing
+            # scaler = MinMaxScaler(feature_range=(0, 1))
+            # new_dfX[new_dfX.columns] = scaler.fit_transform(new_dfX[new_dfX.columns])
+
+            # new_dfX.to_csv(
+            #     'data_files/training_data/actigraph_model_training_data_X_' + subject + '_' + str(idx_a) + '.csv',
+            #     index=False)
+
             new_npX_list.append(new_dfX.to_numpy())  # convert df to array before appending
 
     print("", end=f"\r{subject}: 100%")
@@ -215,6 +220,7 @@ def generate_actigraphy_segments(df_p, df_a, subject):
     # print("X_list length = " + str(len(new_X_list)))
     # print("X fields = " + str(new_X_list[0].shape[1]))
     # print("y shape = " + str(df_a.shape))
+
     return new_npX_list, df_a, max_observations
 
 
@@ -286,15 +292,21 @@ def setup_training_data_for_actigraphy_model(dic_p, dic_a):
     # resize arrays to fit window size
     complete_npX = []
     for arr in npX_list:
-        complete_npX.append(np.resize(arr.copy(), (window, arr.shape[1])))
+        padded_arr = np.pad(arr, [(0, window - arr.shape[0]), (0, 0)], mode='constant', constant_values=-1)
+        complete_npX.append(padded_arr)
     complete_npX = np.dstack(complete_npX)
     complete_npX = complete_npX.transpose(2, 0, 1)
 
     complete_dfy = pd.concat(dfy_list, axis=0, ignore_index=True)
-    complete_dfy = complete_dfy.drop(["onset_timestamp"], axis=1)
-    complete_dfy['inbed_timestamp'] = timestamp_to_epoch(complete_dfy['inbed_timestamp'])
-    complete_dfy['outbed_timestamp'] = timestamp_to_epoch(complete_dfy['outbed_timestamp'])
+    complete_dfy = complete_dfy.drop(["onset_timestamp", "inbed_timestamp", "outbed_timestamp"], axis=1)
+
+    # TEST
+    complete_dfy = complete_dfy["wake_after_sleep_onset_(waso)"]
+
     complete_dfy = complete_dfy.reset_index(drop=True)
+
+    # complete_dfy.to_csv('data_files/training_data/actigraph_model_training_data_y.csv', index=False)
+
     print("finished generating actigraph training data")
 
     return complete_npX, complete_dfy.to_numpy()

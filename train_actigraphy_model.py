@@ -2,8 +2,9 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow import keras
 from keras.layers.core import Activation, Dropout, Dense
+from keras.optimizers import SGD
 from keras.models import Sequential
-from keras.layers import Flatten, LSTM
+from keras.layers import Flatten, LSTM, Dense, Masking
 
 import numpy as np
 import pandas as pd
@@ -21,29 +22,50 @@ def train_data(X, y):
     testX = testX.reshape(1, testX.shape[0], testX.shape[1])
 
 
-if __name__ == '__main__':
-    X, y = generate_training_data()
-    n_steps = X.shape[1]
-    n_features = X.shape[2]
-    n_output = y.shape[1]
-    verbose, epochs, batch_size = 0, 50, 64
+def save_train_data(X, y):
+    with open('frozen_variables/acti_train.npy', 'wb') as f:
+        np.save(f, X)
+        np.save(f, y)
 
-    print("Window: " + str(n_steps))
+
+def load_train_data():
+    with open('frozen_variables/acti_train.npy', 'rb') as f:
+        X = np.load(f)
+        y = np.load(f)
+    return X, y
+
+
+if __name__ == '__main__':
+    masking_value = -1
+    generate_data_flag = 0
+
+    if generate_data_flag:
+        X, y = generate_training_data()
+        save_train_data(X, y)
+    else:
+        X, y = load_train_data()
+
     print(X.shape)
     print(y.shape)
-    print(n_features)
+
+    n_steps = X.shape[1]
+    n_features = X.shape[2]
+    # n_output = y.shape[1]
+    n_output = 1
+    verbose, epochs, batch_size = 2, 200, 32
 
     model = Sequential()
-    model.add(LSTM(100, activation='relu', return_sequences=True, input_shape=(n_steps, n_features)))
-    model.add(LSTM(100, activation='relu'))
+    model.add(Masking(mask_value=masking_value, input_shape=(n_steps, n_features)))
+    model.add(LSTM(1000, activation='relu', return_sequences=True))
+    model.add(LSTM(1000, activation='relu'))
     model.add(Dense(n_output))
-    model.compile(optimizer='adam', loss='mse')
+    model.compile(loss='mae', optimizer='adam', metrics=['mse'])
 
     print(model.summary())
 
     print("Fitting model...")
     # fit model
-    history = model.fit(X, y, validation_split=0.2, epochs=epochs, batch_size=batch_size, verbose=verbose)
+    history = model.fit(X, y, validation_split=0.2, epochs=epochs, verbose=verbose)
     print("model fitted")
 
     print(history.history)

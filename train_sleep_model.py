@@ -29,7 +29,7 @@ def plot_dataframe(plot_df):
 
 
 def save_model(clf):
-    Pkl_Filename = "Pickle_" + get_classifier_name(clf) + ".pkl"
+    Pkl_Filename = "frozen_variables/Pickle_" + get_classifier_name(clf) + ".pkl"
 
     with open(Pkl_Filename, 'wb') as file:
         pickle.dump(clf, file)
@@ -57,7 +57,7 @@ def train_data(clf, X, y):
 
 def load_model(clf, X, y):
     print("Loading saved " + get_classifier_name(clf) + " model...")
-    Pkl_Filename = "Pickle_" + get_classifier_name(clf) + ".pkl"
+    Pkl_Filename = "frozen_variables/Pickle_" + get_classifier_name(clf) + ".pkl"
     # Load the Model back from file
     with open(Pkl_Filename, 'rb') as file:
         Pickled_Ada_Model = pickle.load(file)
@@ -95,7 +95,7 @@ def generate_training_data():
     X = dataset.drop(['sleep_or_wake'], axis=1)
     y = dataset['sleep_or_wake']
 
-    # # normalizing
+    # normalizing
     scaler = MinMaxScaler(feature_range=(0, 1))
     X[X.columns] = scaler.fit_transform(X[X.columns])
 
