@@ -45,8 +45,6 @@ def train_data(clf, X, y):
     print("Generating prediction...")
     clfPred = clf.predict(test_X)
 
-    acc = accuracy_score(test_y, clfPred)
-    f1 = f1_score(test_y, clfPred)
     print('\nAccuracy:', accuracy_score(test_y, clfPred))
     print('F1 score:', f1_score(test_y, clfPred))
     print('Recall:', recall_score(test_y, clfPred))
@@ -75,22 +73,6 @@ def load_model(clf, X, y):
 def generate_training_data():
     print("Retrieving dataset...")
     dataset = prepare_data.get_sleep_model_training_data()
-
-    boolean_columns = ["discrete:app_state:is_active", "discrete:app_state:is_inactive",
-                       "discrete:app_state:is_background",
-                       "discrete:app_state:missing", "discrete:battery_plugged:is_ac",
-                       "discrete:battery_plugged:is_usb",
-                       "discrete:battery_plugged:is_wireless", "discrete:battery_plugged:missing",
-                       "discrete:battery_state:is_unknown", "discrete:battery_state:is_unplugged",
-                       "discrete:battery_state:is_not_charging", "discrete:battery_state:is_discharging",
-                       "discrete:battery_state:is_charging", "discrete:battery_state:is_full",
-                       "discrete:battery_state:missing", "discrete:on_the_phone:is_False",
-                       "discrete:on_the_phone:is_True",
-                       "discrete:on_the_phone:missing", "discrete:ringer_mode:is_normal",
-                       "discrete:ringer_mode:is_silent_no_vibrate", "discrete:ringer_mode:is_silent_with_vibrate",
-                       "discrete:ringer_mode:missing", "discrete:wifi_status:is_not_reachable",
-                       "discrete:wifi_status:is_reachable_via_wifi", "discrete:wifi_status:is_reachable_via_wwan",
-                       "discrete:wifi_status:missing"]
 
     print("Cleaning and preparing dataframe")
 

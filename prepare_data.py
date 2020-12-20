@@ -1,12 +1,17 @@
+import sys
+import time
 import pandas as pd
 import numpy as np
 import glob
 import os
 import csv
 import gzip
+from sklearn.preprocessing import MinMaxScaler
+
 
 # "genoveva" not included because data is mixed up for some days - will fix after looking through notes
-subjects = ["adonay", "yared", "yosias", "yuxiao", "hao", "zhaohui"]
+# subjects = ["adonay", "yared"]
+subjects = ["adonay", "yared", "yosias", "yuxiao"]
 
 phone_data_dir = "data_files/phone_features/"
 watch_data_dir = "data_files/watch_labels/"
@@ -86,7 +91,9 @@ def generate_timestamp_for_actigraph_data(df):
     cols = list(df.columns)
     cols = cols[-3:] + cols[:-3]
     df = df[cols]
-    df = df.drop(["In Bed Date", "Out Bed Date", "Onset Date", "In Bed Time", "Out Bed Time", "Onset Time"], axis=1)
+    df = df.drop(
+        ["In Bed Date", "Out Bed Date", "Onset Date", "In Bed Time", "Out Bed Time", "Onset Time", "Sleep Algorithm",
+         "Latency"], axis=1)
     df.sort_values(by=['inbed_timestamp'], inplace=True)
     return df
 
@@ -163,27 +170,53 @@ def reindex_and_merge_by_timestamp(df_p, df_w):
 
 # # return value new_X_list is a list of dataframes which should be matched to each row
 # # of the dataframe that is returned as the other value (df_a) for training
-# def setup_training_data_for_actigraph_model(df_p, df_a):
-#     print("generating training data")
-#     new_X_list = []
-#     for idx_a, row_a in df_a.iterrows():
-#         print("sleep period: " + str(idx_a))
-#         start_ts = row_a["inbed_timestamp"]
-#         end_ts = row_a["outbed_timestamp"]
-#         # print("start = " + str(start_ts) + ", end = " + str(end_ts))
-#         print("Sleep duration = " + str(end_ts - start_ts))
-#         new_X = pd.DataFrame(columns=list(df_p.columns))
-#         for idx_p, row_p in df_p.iterrows():
-#             if start_ts < row_p["timestamp"] < end_ts:
-#                 new_X = new_X.append(df_p.iloc[idx_p])
-#         new_X_list.append(new_X)
-#         print("Duration from phone = " + str(new_X.shape[0] * 60))
-#
-#     # print("training data generated!")
-#     print("X_list length = " + str(len(new_X_list)))
-#     print("X fields = " + str(new_X_list[0].shape[1]))
-#     print("y shape = " + str(df_a.shape))
-#     return new_X_list, df_a
+def generate_actigraphy_segments(df_p, df_a, subject):
+    new_npX_list = []
+    invalid_sleep_periods = []
+    minimum_observations_for_a_period = 1
+    max_observations = 0
+    for idx_a, row_a in df_a.iterrows():
+        # print(str(idx_a / df_a.shape[1] * 100) + "%", end='')
+        print("", end=f"\r{subject}: {idx_a / df_a.shape[0] * 100}%")
+        # time.sleep(0.2)
+        # print("sleep period: " + str(idx_a))
+        start_ts = row_a["inbed_timestamp"]
+        end_ts = row_a["outbed_timestamp"]
+        # print("start = " + str(start_ts) + ", end = " + str(end_ts))
+        # print("Sleep duration = " + str(end_ts.timestamp() - start_ts.timestamp()))
+        new_dfX = pd.DataFrame(columns=list(df_p.columns))
+        for idx_p, row_p in df_p.iterrows():
+            if start_ts < row_p["timestamp"] < end_ts:
+                new_dfX = new_dfX.append(df_p.iloc[idx_p])
+        new_dfX['timestamp'] = timestamp_to_epoch(new_dfX['timestamp'])
+
+        new_dfX = new_dfX.reset_index(drop=True)
+        observations_from_phone = new_dfX.shape[0]
+        # print("Duration from phone = " + str(observations_from_phone * 60))
+        if observations_from_phone < minimum_observations_for_a_period:
+            invalid_sleep_periods.append(idx_a)
+        else:
+            if observations_from_phone > max_observations:
+                max_observations = observations_from_phone
+
+            # impute
+            new_dfX = new_dfX.fillna(0)
+            # normalizing
+            scaler = MinMaxScaler(feature_range=(0, 1))
+            new_dfX[new_dfX.columns] = scaler.fit_transform(new_dfX[new_dfX.columns])
+            new_npX_list.append(new_dfX.to_numpy())  # convert df to array before appending
+
+    print("", end=f"\r{subject}: 100%")
+    print("")
+    # drop invalid sleep periods
+    df_a.drop(invalid_sleep_periods, 0, inplace=True)
+    print("sleep periods dropped: " + str(len(invalid_sleep_periods)))
+    print("max observations: " + str(max_observations))
+    # print("X_list length = " + str(len(new_X_list)))
+    # print("X fields = " + str(new_X_list[0].shape[1]))
+    # print("y shape = " + str(df_a.shape))
+    return new_npX_list, df_a, max_observations
+
 
 # return value new_X_list is a list of dataframes which should be matched to each row
 # of the dataframe that is returned as the other value (df_a) for training
@@ -214,6 +247,7 @@ def load_data():
         for gz_file_name in glob.glob(os.path.join(actigraph_data_dir, subject + "_actigraph*.csv")):
             df_list.append(pd.read_csv(gz_file_name, index_col=None, header=4))
         df_actigraph = generate_timestamp_for_actigraph_data(pd.concat(df_list, axis=0, ignore_index=True))
+        df_actigraph.columns = [col.lower().replace(' ', '_') for col in df_actigraph.columns]
         actigraph_dic[subject] = df_actigraph
         df_list = []
 
@@ -234,6 +268,38 @@ def setup_training_data_for_sleep_model(dic_p, dic_w):
     return final_df
 
 
+def setup_training_data_for_actigraphy_model(dic_p, dic_a):
+    print("generating actigraph training data. please wait...")
+    print("Progress per subject:")
+    npX_list = []
+    dfy_list = []
+    window = 0
+    for subject in subjects:
+        print(subject + ": ", end='')
+        tempX, tempy, obs = generate_actigraphy_segments(dic_p[subject], dic_a[subject], subject)
+        print("")
+        npX_list.extend(tempX)
+        dfy_list.append(tempy)
+        if obs > window:
+            window = obs
+
+    # resize arrays to fit window size
+    complete_npX = []
+    for arr in npX_list:
+        complete_npX.append(np.resize(arr.copy(), (window, arr.shape[1])))
+    complete_npX = np.dstack(complete_npX)
+    complete_npX = complete_npX.transpose(2, 0, 1)
+
+    complete_dfy = pd.concat(dfy_list, axis=0, ignore_index=True)
+    complete_dfy = complete_dfy.drop(["onset_timestamp"], axis=1)
+    complete_dfy['inbed_timestamp'] = timestamp_to_epoch(complete_dfy['inbed_timestamp'])
+    complete_dfy['outbed_timestamp'] = timestamp_to_epoch(complete_dfy['outbed_timestamp'])
+    complete_dfy = complete_dfy.reset_index(drop=True)
+    print("finished generating actigraph training data")
+
+    return complete_npX, complete_dfy.to_numpy()
+
+
 def check_sleep_label_balance(df):
     print(df.groupby('sleep_or_wake').count())
 
@@ -243,10 +309,23 @@ def get_sleep_model_training_data():
     return setup_training_data_for_sleep_model(phone_data, watch_data)
 
 
+def get_actigraphy_model_training_data():
+    phone_data, watch_data, actigraph_data = load_data()
+    return setup_training_data_for_actigraphy_model(phone_data, actigraph_data)
+
+
 if __name__ == '__main__':
-    df = get_sleep_model_training_data()
-    check_sleep_label_balance(df)
-    # test_subject = "yosias"
-    # phone_data, watch_data, actigraph_data = load_data()
-    # X_list, y = setup_training_data_for_actigraph_model(phone_data[test_subject], actigraph_data[test_subject])
+    # df = get_sleep_model_training_data()
+    # check_sleep_label_balance(df)
+    test_subject = "yosias"
+    phone_data, watch_data, actigraph_data = load_data()
+    X, y, max_obs = generate_actigraphy_segments(phone_data[test_subject], actigraph_data[test_subject],
+                                                 test_subject)
+    for arr in X:
+        print(arr.shape)
+
+    X = np.dstack(X)
+    n_features = X.shape
+    print(n_features)
+
     # print_data_statistics(phone_data[test_subject], watch_data[test_subject], actigraph_data[test_subject])
