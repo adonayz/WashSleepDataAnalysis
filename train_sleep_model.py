@@ -29,7 +29,7 @@ def plot_dataframe(plot_df):
 
 
 def save_model(clf):
-    Pkl_Filename = "frozen_variables/Pickle_" + get_classifier_name(clf) + ".pkl"
+    Pkl_Filename = "ai_models/Pickle_" + get_classifier_name(clf) + ".pkl"
 
     with open(Pkl_Filename, 'wb') as file:
         pickle.dump(clf, file)
@@ -52,12 +52,12 @@ def train_data(clf, X, y):
     print('\n clasification report:\n', classification_report(test_y, clfPred))
     print('\n confussion matrix:\n', confusion_matrix(test_y, clfPred))
 
-    # save_model(clf)
+    save_model(clf)
 
 
 def load_model(clf, X, y):
     print("Loading saved " + get_classifier_name(clf) + " model...")
-    Pkl_Filename = "frozen_variables/Pickle_" + get_classifier_name(clf) + ".pkl"
+    Pkl_Filename = "ai_models/Pickle_" + get_classifier_name(clf) + ".pkl"
     # Load the Model back from file
     with open(Pkl_Filename, 'rb') as file:
         Pickled_Ada_Model = pickle.load(file)
@@ -84,12 +84,12 @@ def generate_training_data():
     # imp_mean.fit(dataset)
     # dataset[dataset.columns] = imp_mean.transform(dataset)
 
-    dataset[dataset.columns] = mice(dataset.values)
-    print("impute finished")
+    # dataset[dataset.columns] = mice(dataset.values)
+    # print("impute finished")
 
-    # dataset = dataset.fillna(0)
+    dataset = dataset.fillna(0)
 
-    # dataset.to_csv(training_dataset_output_path + 'sleep_model_training_data.csv', index=False)
+    dataset.to_csv(training_dataset_output_path + 'sleep_model_training_data.csv', index=False)
     dataset = dataset.drop(['timestamp'], axis=1)
 
     X = dataset.drop(['sleep_or_wake'], axis=1)

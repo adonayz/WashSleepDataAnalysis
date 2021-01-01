@@ -152,63 +152,38 @@ def reindex_and_merge_by_timestamp(df_p, df_w):
     return merged_df
 
 
-# # interpolates on the phone data against watch data because it is much smaller than the watch data due
-# to timestamp data loss
-# # NOT IMPLEMENTED YET
-# def interpolate_phone_data(df_p, df_w, df_a):
-#     for idx_a, row_a in df_a.iterrows():
-#         print("sleep period: " + str(idx_a))
-#         start_ts = row_a["inbed_timestamp"]
-#         end_ts = row_a["outbed_timestamp"]
-#         print("start = " + str(start_ts) + ", end = " + str(end_ts))
-#         new_X = pd.DataFrame(columns=list(df_p.columns))
-#         for idx_p, row_p in df_p.iterrows():
-#             if start_ts < row_p["timestamp"] < end_ts:
-#                 new_X.append(df_p.iloc[idx_p])
-
-
 # # return value new_X_list is a list of dataframes which should be matched to each row
 # # of the dataframe that is returned as the other value (df_a) for training
 def generate_actigraphy_segments(df_p, df_a, subject):
     new_npX_list = []
     invalid_sleep_periods = []
-    minimum_observations_for_a_period = 1
-    max_observations = 0
+    min_phone_observation_threshold = 40
+    phone_observations = []
     for idx_a, row_a in df_a.iterrows():
-        # print(str(idx_a / df_a.shape[1] * 100) + "%", end='')
         print("", end=f"\r{subject}: {idx_a / df_a.shape[0] * 100}%")
-        # time.sleep(0.2)
-        # print("sleep period: " + str(idx_a))
         start_ts = row_a["inbed_timestamp"]
         end_ts = row_a["outbed_timestamp"]
+        # print("sleep period: " + str(idx_a))
         # print("start = " + str(start_ts) + ", end = " + str(end_ts))
         # print("Sleep duration = " + str(end_ts.timestamp() - start_ts.timestamp()))
+
         new_dfX = pd.DataFrame(columns=list(df_p.columns))
         for idx_p, row_p in df_p.iterrows():
             if start_ts < row_p["timestamp"] < end_ts:
                 new_dfX = new_dfX.append(df_p.iloc[idx_p])
         new_dfX = new_dfX.reset_index(drop=True)
-        observations_from_phone = new_dfX.shape[0]
+        phone_observations_in_curr_sp = new_dfX.shape[0]
         # print("Duration from phone = " + str(observations_from_phone * 60))
-        if observations_from_phone < minimum_observations_for_a_period:
+        if phone_observations_in_curr_sp < min_phone_observation_threshold:
             invalid_sleep_periods.append(idx_a)
         else:
-            if observations_from_phone > max_observations:
-                max_observations = observations_from_phone
-
+            phone_observations.append(phone_observations_in_curr_sp)
             new_dfX['timestamp'] = timestamp_to_epoch(new_dfX['timestamp'])
 
-            # impute
-            new_dfX = new_dfX.fillna(0)
-
-            # # normalizing
-            # scaler = MinMaxScaler(feature_range=(0, 1))
-            # new_dfX[new_dfX.columns] = scaler.fit_transform(new_dfX[new_dfX.columns])
-
+            new_dfX = clean_and_normalize_data(new_dfX)
             # new_dfX.to_csv(
-            #     'data_files/training_data/actigraph_model_training_data_X_' + subject + '_' + str(idx_a) + '.csv',
+            #     'data_files/training_data/actigraph_model_training_data_X_' + subject + '_clean' + str(idx_a) + '.csv',
             #     index=False)
-
             new_npX_list.append(new_dfX.to_numpy())  # convert df to array before appending
 
     print("", end=f"\r{subject}: 100%")
@@ -216,16 +191,34 @@ def generate_actigraphy_segments(df_p, df_a, subject):
     # drop invalid sleep periods
     df_a.drop(invalid_sleep_periods, 0, inplace=True)
     print("sleep periods dropped: " + str(len(invalid_sleep_periods)))
-    print("max observations: " + str(max_observations))
-    # print("X_list length = " + str(len(new_X_list)))
-    # print("X fields = " + str(new_X_list[0].shape[1]))
-    # print("y shape = " + str(df_a.shape))
+    print_observations_statistic(phone_observations.copy())
 
-    return new_npX_list, df_a, max_observations
+    return new_npX_list, df_a, phone_observations
 
 
-# return value new_X_list is a list of dataframes which should be matched to each row
-# of the dataframe that is returned as the other value (df_a) for training
+def print_observations_statistic(observations):
+    print(observations)
+    print("max observations: " + str(max(observations)))
+    print("min observations(non zero periods): " + str(min(observations)))
+    print("avg observations(non zero periods): " + str(sum(observations) / len(observations)))
+    return max(observations)
+
+
+def clean_and_normalize_data(df):
+    # columns with all null values
+    null_columns = df[df.columns[df.isnull().all()]].columns.values
+    # fill with zero
+    df[null_columns] = df[null_columns].fillna(0)
+
+    from sklearn.impute import SimpleImputer
+    imp_mean = SimpleImputer(strategy='mean')  # for median imputation replace 'mean' with 'median'
+    imp_mean.fit(df)
+    df[df.columns] = imp_mean.transform(df[df.columns])
+
+    # normalizing
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    df[df.columns] = scaler.fit_transform(df[df.columns])
+    return df
 
 
 def load_data():
@@ -279,23 +272,27 @@ def setup_training_data_for_actigraphy_model(dic_p, dic_a):
     print("Progress per subject:")
     npX_list = []
     dfy_list = []
-    window = 0
+    observations = []
     for subject in subjects:
         print(subject + ": ", end='')
         tempX, tempy, obs = generate_actigraphy_segments(dic_p[subject], dic_a[subject], subject)
         print("")
         npX_list.extend(tempX)
         dfy_list.append(tempy)
-        if obs > window:
-            window = obs
+        observations.extend(obs)
 
+    window_max = max(observations)
+    window = 100
     # resize arrays to fit window size
     complete_npX = []
     for arr in npX_list:
-        padded_arr = np.pad(arr, [(0, window - arr.shape[0]), (0, 0)], mode='constant', constant_values=-1)
-        complete_npX.append(padded_arr)
-    complete_npX = np.dstack(complete_npX)
-    complete_npX = complete_npX.transpose(2, 0, 1)
+        window_fit_arr = fit_window(arr, window)
+        complete_npX.append(window_fit_arr)
+
+    print(len(complete_npX))
+
+    complete_npX = np.dstack(complete_npX)  # stack arrays into a 3d array
+    complete_npX = complete_npX.transpose(2, 0, 1)  # transpose array to fit dimensions needed by LSTM layers
 
     complete_dfy = pd.concat(dfy_list, axis=0, ignore_index=True)
     complete_dfy = complete_dfy.drop(["onset_timestamp", "inbed_timestamp", "outbed_timestamp"], axis=1)
@@ -304,12 +301,23 @@ def setup_training_data_for_actigraphy_model(dic_p, dic_a):
     complete_dfy = complete_dfy["wake_after_sleep_onset_(waso)"]
 
     complete_dfy = complete_dfy.reset_index(drop=True)
-
     # complete_dfy.to_csv('data_files/training_data/actigraph_model_training_data_y.csv', index=False)
 
     print("finished generating actigraph training data")
 
     return complete_npX, complete_dfy.to_numpy()
+
+
+def fit_window(arr, window):
+    if arr.shape[0] >= window:
+        # decrease rows in array its bigger than window size
+        window_fit_arr = arr.copy()
+        window_fit_arr.resize((window, arr.shape[1]))
+    else:
+        # pad array with -1 to fit window dimension
+        window_fit_arr = np.pad(arr, [(0, window - arr.shape[0]), (0, 0)], mode='constant', constant_values=-1)
+
+    return window_fit_arr
 
 
 def check_sleep_label_balance(df):
@@ -326,18 +334,16 @@ def get_actigraphy_model_training_data():
     return setup_training_data_for_actigraphy_model(phone_data, actigraph_data)
 
 
-if __name__ == '__main__':
+def test():
     # df = get_sleep_model_training_data()
     # check_sleep_label_balance(df)
     test_subject = "yosias"
     phone_data, watch_data, actigraph_data = load_data()
-    X, y, max_obs = generate_actigraphy_segments(phone_data[test_subject], actigraph_data[test_subject],
-                                                 test_subject)
-    for arr in X:
-        print(arr.shape)
-
-    X = np.dstack(X)
-    n_features = X.shape
-    print(n_features)
+    X, y, obs = generate_actigraphy_segments(phone_data[test_subject], actigraph_data[test_subject],
+                                             test_subject)
 
     # print_data_statistics(phone_data[test_subject], watch_data[test_subject], actigraph_data[test_subject])
+
+
+if __name__ == '__main__':
+    test()

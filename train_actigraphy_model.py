@@ -1,25 +1,24 @@
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
-from tensorflow import keras
-from keras.layers.core import Activation, Dropout, Dense
-from keras.optimizers import SGD
 from keras.models import Sequential
 from keras.layers import Flatten, LSTM, Dense, Masking
-
+from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.model_selection import GridSearchCV
 import numpy as np
-import pandas as pd
 import prepare_data
+from keras.optimizers import RMSprop
 
 
 def generate_training_data():
     return prepare_data.get_actigraphy_model_training_data()
 
 
-def train_data(X, y):
+def separate_train_test_set(X, y):
     trainX, testX, trainY, testY = train_test_split(X, y, test_size=0.2)
-    trainX = trainX.reshape(trainX.shape[0], 1, trainX.shape[1])
-    trainY = trainY.reshape(trainY.shape[0], )
-    testX = testX.reshape(1, testX.shape[0], testX.shape[1])
+    print(trainX.shape)
+    # trainX = trainX.reshape(trainX.shape[0], 1, trainX.shape[1])
+    # trainY = trainY.reshape(trainY.shape[0], )
+    # testX = testX.reshape(1, testX.shape[0], testX.shape[1])
 
 
 def save_train_data(X, y):
@@ -35,10 +34,16 @@ def load_train_data():
     return X, y
 
 
-if __name__ == '__main__':
-    masking_value = -1
-    generate_data_flag = 0
+def save_model(model):
+    model.save('ai_models/model_actigraphy_lstm.h5')
 
+
+def load_model():
+    model = tf.saved_model.load('model_actigraphy_lstm.h5')
+    return model
+
+
+def get_data(generate_data_flag):
     if generate_data_flag:
         X, y = generate_training_data()
         save_train_data(X, y)
@@ -50,31 +55,88 @@ if __name__ == '__main__':
 
     n_steps = X.shape[1]
     n_features = X.shape[2]
-    # n_output = y.shape[1]
-    n_output = 1
-    verbose, epochs, batch_size = 2, 200, 32
+    if y.ndim > 1:
+        n_output = y.shape[1]
+    else:
+        n_output = 1
 
-    model = Sequential()
-    model.add(Masking(mask_value=masking_value, input_shape=(n_steps, n_features)))
-    model.add(LSTM(1000, activation='relu', return_sequences=True))
-    model.add(LSTM(1000, activation='relu'))
-    model.add(Dense(n_output))
-    model.compile(loss='mae', optimizer='adam', metrics=['mse'])
+    return X, y, n_steps, n_features, n_output
 
-    print(model.summary())
 
-    print("Fitting model...")
-    # fit model
-    history = model.fit(X, y, validation_split=0.2, epochs=epochs, verbose=verbose)
-    print("model fitted")
-
-    print(history.history)
-
-    # model.save('model_lstm.h5')
-    # model = keras.load_model('model_lstm.h5')
-
+def make_prediction(model, x_input, n_steps, n_features):
     # demonstrate prediction
-    x_input = X[0]
     x_input = x_input.reshape((1, n_steps, n_features))
     yhat = model.predict(x_input, verbose=0)
     print(yhat)
+
+
+def create_model(masking_value=-1, n_steps=100, n_features=131, n_output=1, optimizer='adam', learn_rate=0.01,
+                 momentum=0):
+    model = Sequential()
+    model.add(Masking(mask_value=masking_value, input_shape=(n_steps, n_features)))
+    model.add(LSTM(50, activation='relu'))
+    model.add(Dense(n_output))
+    optimizer = RMSprop(lr=learn_rate)
+    model.compile(loss='mae', optimizer=optimizer, metrics=["accuracy"])
+
+    return model
+
+
+def fit_model(model, X, y, epochs, batch_size, verbose):
+    print(model.summary())
+    print("Fitting model...")
+    history = model.fit(X, y, epochs=epochs, verbose=verbose)
+    print("model fitted")
+    print(history.history)
+
+
+def grid_search(X, y, masking_value, n_steps, n_features, n_output):
+    # fix random seed for reproducibility
+    seed = 7
+    np.random.seed(seed)
+
+    model = KerasClassifier(build_fn=create_model, masking_value=masking_value, n_steps=n_steps, n_features=n_features,
+                            n_output=n_output, verbose=0)
+    # define the grid search parameters
+    batch_size = [100]
+    epochs = [1000] 
+    learn_rate = [0.001, 0.01, 0.1, 0.2, 0.3]
+    momentum = [0.0, 0.2, 0.4, 0.6, 0.8, 0.9]
+    optimizer = ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
+    param_grid = dict(batch_size=batch_size, epochs=epochs, learn_rate=learn_rate)
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=3)
+    grid_result = grid.fit(X, y)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    means = grid_result.cv_results_['mean_test_score']
+    stds = grid_result.cv_results_['std_test_score']
+    params = grid_result.cv_results_['params']
+    for mean, stdev, param in zip(means, stds, params):
+        print("%f (%f) with: %r" % (mean, stdev, param))
+
+
+def start_training():
+    verbose, epochs, batch_size = 2, 1500, 32
+    masking_value = -1
+    generate_data_flag = 0
+
+    X, y, n_steps, n_features, n_output = get_data(generate_data_flag)
+
+    grid_search(X, y, masking_value, n_steps, n_features, n_output)
+
+    model = create_model(masking_value=masking_value, n_steps=n_steps, n_features=n_features, n_output=n_output)
+    # fit_model(model, X, y, epochs, batch_size, verbose)
+
+    # save_model(model)
+    # model = load_model()
+
+    return model, X[0], n_steps, n_features
+
+
+def start_program():
+    model, x_input, n_steps, n_features = start_training()
+    # make_prediction(model, x_input, n_steps, n_features)
+
+
+if __name__ == '__main__':
+    start_program()
