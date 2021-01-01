@@ -6,7 +6,7 @@ from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.model_selection import GridSearchCV
 import numpy as np
 import prepare_data
-from keras.optimizers import RMSprop
+from keras.optimizers import Adamax
 
 
 def generate_training_data():
@@ -70,13 +70,14 @@ def make_prediction(model, x_input, n_steps, n_features):
     print(yhat)
 
 
-def create_model(masking_value=-1, n_steps=100, n_features=131, n_output=1, optimizer='adam', learn_rate=0.01,
-                 momentum=0):
+def create_model(masking_value=-1, n_steps=100, n_features=131, n_output=1, optimizer='adam', lr=0.001,
+                 activation='relu', neurons=50, dropout_rate=0.0, weight_constraint=0, init_mode='uniform'):
     model = Sequential()
     model.add(Masking(mask_value=masking_value, input_shape=(n_steps, n_features)))
-    model.add(LSTM(50, activation='relu'))
+    # model.add(LSTM(50, activation=activation, return_sequences=True, kernel_initializer=init_mode))
+    model.add(LSTM(neurons, activation=activation, kernel_initializer=init_mode))
     model.add(Dense(n_output))
-    optimizer = RMSprop(lr=learn_rate)
+    optimizer = Adamax(lr=lr)
     model.compile(loss='mae', optimizer=optimizer, metrics=["accuracy"])
 
     return model
@@ -98,12 +99,18 @@ def grid_search(X, y, masking_value, n_steps, n_features, n_output):
     model = KerasClassifier(build_fn=create_model, masking_value=masking_value, n_steps=n_steps, n_features=n_features,
                             n_output=n_output, verbose=0)
     # define the grid search parameters
-    batch_size = [100]
-    epochs = [1000] 
+    batch_size = [1, 16, 32, 64, 128, 256, 512]
+    epochs = [500, 1000, 1500]
     learn_rate = [0.001, 0.01, 0.1, 0.2, 0.3]
     momentum = [0.0, 0.2, 0.4, 0.6, 0.8, 0.9]
-    optimizer = ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
-    param_grid = dict(batch_size=batch_size, epochs=epochs, learn_rate=learn_rate)
+    # optimizer = ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
+    init_mode = ['uniform', 'lecun_uniform', 'normal', 'zero', 'glorot_normal', 'glorot_uniform', 'he_normal',
+                 'he_uniform']
+    activation = ['softmax', 'softplus', 'softsign', 'relu', 'tanh', 'sigmoid', 'hard_sigmoid', 'linear']
+    neurons = [1, 5, 10, 15, 20, 25, 50, 100, 150, 300]
+    weight_constraint = [1, 2, 3, 4, 5]
+    dropout_rate = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    param_grid = dict(batch_size=batch_size, epochs=epochs, activation=activation, neurons=neurons, init_mode=init_mode)
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=3)
     grid_result = grid.fit(X, y)
     # summarize results
@@ -118,13 +125,13 @@ def grid_search(X, y, masking_value, n_steps, n_features, n_output):
 def start_training():
     verbose, epochs, batch_size = 2, 1500, 32
     masking_value = -1
-    generate_data_flag = 0
+    generate_data_flag = 1
 
     X, y, n_steps, n_features, n_output = get_data(generate_data_flag)
 
     grid_search(X, y, masking_value, n_steps, n_features, n_output)
 
-    model = create_model(masking_value=masking_value, n_steps=n_steps, n_features=n_features, n_output=n_output)
+    model = create_model(masking_value, n_steps, n_features, n_output)
     # fit_model(model, X, y, epochs, batch_size, verbose)
 
     # save_model(model)

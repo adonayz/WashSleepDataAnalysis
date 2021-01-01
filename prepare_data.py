@@ -157,7 +157,7 @@ def reindex_and_merge_by_timestamp(df_p, df_w):
 def generate_actigraphy_segments(df_p, df_a, subject):
     new_npX_list = []
     invalid_sleep_periods = []
-    min_phone_observation_threshold = 40
+    min_phone_observation_threshold = 70
     phone_observations = []
     for idx_a, row_a in df_a.iterrows():
         print("", end=f"\r{subject}: {idx_a / df_a.shape[0] * 100}%")
@@ -282,7 +282,7 @@ def setup_training_data_for_actigraphy_model(dic_p, dic_a):
         observations.extend(obs)
 
     window_max = max(observations)
-    window = 100
+    window = 150
     # resize arrays to fit window size
     complete_npX = []
     for arr in npX_list:
