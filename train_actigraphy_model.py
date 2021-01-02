@@ -1,12 +1,12 @@
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
-from keras.models import Sequential
-from keras.layers import Flatten, LSTM, Dense, Masking
-from keras.wrappers.scikit_learn import KerasClassifier
+from tensorflow.python.keras.models import Sequential
+from tensorflow.python.keras.layers import Flatten, LSTM, Dense, Masking
+from tensorflow.python.keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.model_selection import GridSearchCV
 import numpy as np
 import prepare_data
-from keras.optimizers import Adamax
+from tensorflow.python.keras.optimizers import Adamax
 
 
 def generate_training_data():
@@ -77,7 +77,7 @@ def create_model(masking_value=-1, n_steps=100, n_features=131, n_output=1, opti
     # model.add(LSTM(50, activation=activation, return_sequences=True, kernel_initializer=init_mode))
     model.add(LSTM(neurons, activation=activation, kernel_initializer=init_mode))
     model.add(Dense(n_output))
-    optimizer = Adamax(lr=lr)
+    optimizer = Adamax(lr=0.001)
     model.compile(loss='mae', optimizer=optimizer, metrics=["accuracy"])
 
     return model
@@ -100,7 +100,7 @@ def grid_search(X, y, masking_value, n_steps, n_features, n_output):
                             n_output=n_output, verbose=0)
     # define the grid search parameters
     batch_size = [1, 16, 32, 64, 128, 256, 512]
-    epochs = [500, 1000, 1500]
+    epochs = [500, 1000, 1500, 2000]
     learn_rate = [0.001, 0.01, 0.1, 0.2, 0.3]
     momentum = [0.0, 0.2, 0.4, 0.6, 0.8, 0.9]
     # optimizer = ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
