@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=actigraphmodel         # create a short name for your job
-#SBATCH --nodes=16                # node count
+#SBATCH --nodes=8                # node count
 #SBATCH --ntasks=16               # total number of tasks across all nodes
-#SBATCH --cpus-per-task=16        # cpu-cores per task (>1 if multi-threaded tasks)
+#SBATCH --cpus-per-task=2        # cpu-cores per task (>1 if multi-threaded tasks)
 #SBATCH --mem-per-cpu=8G         # memory per cpu-core (4G is default)
 #SBATCH --time=12:00:00          # total run time limit (HH:MM:SS)
 #SBATCH --mail-type=begin        # send email when job begins
