@@ -6,7 +6,7 @@ from tensorflow.python.keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.model_selection import GridSearchCV
 import numpy as np
 import prepare_data
-from tensorflow.python.keras.optimizers import Adamax
+from tensorflow.keras.optimizers import Adamax
 
 
 def generate_training_data():
