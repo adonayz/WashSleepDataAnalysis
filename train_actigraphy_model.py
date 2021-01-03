@@ -91,7 +91,7 @@ def fit_model(model, X, y, epochs, batch_size, verbose):
     print(history.history)
 
 
-def grid_search(X, y, masking_value, n_steps, n_features, n_output):
+def hyper_parameter_grid_search(X, y, masking_value, n_steps, n_features, n_output):
     # fix random seed for reproducibility
     seed = 7
     np.random.seed(seed)
@@ -122,17 +122,22 @@ def grid_search(X, y, masking_value, n_steps, n_features, n_output):
         print("%f (%f) with: %r" % (mean, stdev, param))
 
 
-def start_training():
+def start_grid_search(mask, g_flag):
+    X, y, n_steps, n_features, n_output = get_data(g_flag)
+
+    hyper_parameter_grid_search(X, y, mask, n_steps, n_features, n_output)
+
+
+def start_training(mask, g_flag):
     verbose, epochs, batch_size = 2, 1500, 32
-    masking_value = -1
-    generate_data_flag = 1
+    opt, lr, actvtn, neurons, dropout_rate, weight_constraint, init_mode = 'adam', 0.001, 'relu', 50, 0.0, 0, 'uniform'
 
-    X, y, n_steps, n_features, n_output = get_data(generate_data_flag)
+    X, y, n_steps, n_features, n_output = get_data(g_flag)
 
-    grid_search(X, y, masking_value, n_steps, n_features, n_output)
-
-    model = create_model(masking_value, n_steps, n_features, n_output)
-    # fit_model(model, X, y, epochs, batch_size, verbose)
+    model = create_model(masking_value=mask, n_steps=n_steps, n_features=n_features, n_output=n_output,
+                         optimizer=opt, lr=lr, activation=actvtn, neurons=neurons, dropout_rate=dropout_rate,
+                         weight_constraint=weight_constraint, init_mode=init_mode)
+    fit_model(model, X, y, epochs, batch_size, verbose)
 
     # save_model(model)
     # model = load_model()
@@ -141,7 +146,12 @@ def start_training():
 
 
 def start_program():
-    model, x_input, n_steps, n_features = start_training()
+    masking_value = -1
+    generate_data_flag = 1
+
+    start_grid_search(masking_value, generate_data_flag)
+
+    # model, x_input, n_steps, n_features = start_training(masking_value, generate_data_flag)
     # make_prediction(model, x_input, n_steps, n_features)
 
 
