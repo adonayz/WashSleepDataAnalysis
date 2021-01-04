@@ -107,7 +107,7 @@ def hyper_parameter_grid_search(X, y, masking_value, n_steps, n_features, n_outp
     init_mode = ['uniform', 'lecun_uniform', 'normal', 'zero', 'glorot_normal', 'glorot_uniform', 'he_normal',
                  'he_uniform']
     activation = ['softmax', 'softplus', 'softsign', 'relu', 'tanh', 'sigmoid', 'hard_sigmoid', 'linear']
-    neurons = [1, 5, 10, 15, 20, 25, 50, 100, 150, 300]
+    neurons = [1, 5, 25, 50, 100, 150, 300]
     weight_constraint = [1, 2, 3, 4, 5]
     dropout_rate = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
     param_grid = dict(batch_size=batch_size, epochs=epochs, activation=activation, neurons=neurons, init_mode=init_mode)
