@@ -129,7 +129,7 @@ def start_grid_search(mask, g_flag):
 
 
 def start_training(mask, g_flag):
-    verbose, epochs, batch_size = 2, 1500, 32
+    verbose, epochs, batch_size = 2, 16000, 32
     opt, lr, actvtn, neurons, dropout_rate, weight_constraint, init_mode = 'adam', 0.001, 'relu', 50, 0.0, 0, 'uniform'
 
     X, y, n_steps, n_features, n_output = get_data(g_flag)
@@ -149,7 +149,9 @@ def start_program():
     masking_value = -1
     generate_data_flag = 1
 
-    start_grid_search(masking_value, generate_data_flag)
+    # start_grid_search(masking_value, generate_data_flag)
+
+    start_training(masking_value, generate_data_flag)
 
     # model, x_input, n_steps, n_features = start_training(masking_value, generate_data_flag)
     # make_prediction(model, x_input, n_steps, n_features)

@@ -298,7 +298,7 @@ def setup_training_data_for_actigraphy_model(dic_p, dic_a):
     complete_dfy = complete_dfy.drop(["onset_timestamp", "inbed_timestamp", "outbed_timestamp"], axis=1)
 
     # TEST
-    complete_dfy = complete_dfy["wake_after_sleep_onset_(waso)"]
+    # complete_dfy = complete_dfy["wake_after_sleep_onset_(waso)"]
 
     complete_dfy = complete_dfy.reset_index(drop=True)
     # complete_dfy.to_csv('data_files/training_data/actigraph_model_training_data_y.csv', index=False)
