@@ -78,8 +78,9 @@ def create_model(masking_value=-1, n_steps=100, n_features=131, n_output=1, opti
     model.add(Masking(mask_value=masking_value, input_shape=(n_steps, n_features)))
     for x in range(lstm_layers - 1):
         model.add(LSTM(neurons, activation=activation, return_sequences=True, kernel_initializer=init_mode))
+        model.add(Dropout(dropout_rate))
     model.add(LSTM(neurons, activation=activation, kernel_initializer=init_mode))
-    # model.add(Dropout(dropout_rate))
+    model.add(Dropout(dropout_rate))
     model.add(Dense(n_output))
     optimizer = Adamax(lr=lr)
     model.compile(loss='mae', optimizer=optimizer, metrics=["accuracy"])
