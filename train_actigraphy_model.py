@@ -1,12 +1,13 @@
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow.python.keras.models import Sequential
-from tensorflow.python.keras.layers import Flatten, LSTM, Dense, Masking
+from tensorflow.python.keras.layers import Flatten, LSTM, Bidirectional, Dense, Masking, Dropout
 from tensorflow.python.keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.model_selection import GridSearchCV
 import numpy as np
 import prepare_data
 from tensorflow.keras.optimizers import Adamax
+import matplotlib.pyplot as plt
 
 
 def generate_training_data():
@@ -71,13 +72,16 @@ def make_prediction(model, x_input, n_steps, n_features):
 
 
 def create_model(masking_value=-1, n_steps=100, n_features=131, n_output=1, optimizer='adam', lr=0.001,
-                 activation='relu', neurons=50, dropout_rate=0.0, weight_constraint=0, init_mode='uniform'):
+                 activation='relu', neurons=100, lstm_layers=1, dropout_rate=0.2, weight_constraint=0,
+                 init_mode='uniform'):
     model = Sequential()
     model.add(Masking(mask_value=masking_value, input_shape=(n_steps, n_features)))
-    # model.add(LSTM(50, activation=activation, return_sequences=True, kernel_initializer=init_mode))
+    for x in range(lstm_layers - 1):
+        model.add(LSTM(neurons, activation=activation, return_sequences=True, kernel_initializer=init_mode))
     model.add(LSTM(neurons, activation=activation, kernel_initializer=init_mode))
+    # model.add(Dropout(dropout_rate))
     model.add(Dense(n_output))
-    optimizer = Adamax(lr=0.001)
+    optimizer = Adamax(lr=lr)
     model.compile(loss='mae', optimizer=optimizer, metrics=["accuracy"])
 
     return model
@@ -86,9 +90,27 @@ def create_model(masking_value=-1, n_steps=100, n_features=131, n_output=1, opti
 def fit_model(model, X, y, epochs, batch_size, verbose):
     print(model.summary())
     print("Fitting model...")
-    history = model.fit(X, y, epochs=epochs, verbose=verbose)
+    history = model.fit(X, y, epochs=epochs, verbose=verbose, batch_size=batch_size)
     print("model fitted")
     print(history.history)
+
+    # summarize history for accuracy
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+
+    # summarize history for loss
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
 
 
 def hyper_parameter_grid_search(X, y, masking_value, n_steps, n_features, n_output):
@@ -100,17 +122,17 @@ def hyper_parameter_grid_search(X, y, masking_value, n_steps, n_features, n_outp
                             n_output=n_output, verbose=0)
     # define the grid search parameters
     batch_size = [1, 16, 32, 64, 128, 256, 512]
-    epochs = [500, 1000, 1500, 2000]
-    learn_rate = [0.001, 0.01, 0.1, 0.2, 0.3]
+    epochs = [500]
+    learn_rate = [0.0001]
+    neurons = [50]
+    dropout_rate = [0.2]
     momentum = [0.0, 0.2, 0.4, 0.6, 0.8, 0.9]
     # optimizer = ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
     init_mode = ['uniform', 'lecun_uniform', 'normal', 'zero', 'glorot_normal', 'glorot_uniform', 'he_normal',
                  'he_uniform']
-    activation = ['softmax', 'softplus', 'softsign', 'relu', 'tanh', 'sigmoid', 'hard_sigmoid', 'linear']
-    neurons = [1, 5, 25, 50, 100, 150, 300]
+    # activation = ['softmax', 'softplus', 'softsign', 'relu', 'tanh', 'sigmoid', 'hard_sigmoid', 'linear']
     weight_constraint = [1, 2, 3, 4, 5]
-    dropout_rate = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-    param_grid = dict(batch_size=batch_size, epochs=epochs, activation=activation, neurons=neurons, init_mode=init_mode)
+    param_grid = dict(batch_size=batch_size, epochs=epochs, neurons=neurons, lr=learn_rate, dropout_rate=dropout_rate)
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=3)
     grid_result = grid.fit(X, y)
     # summarize results
@@ -129,14 +151,15 @@ def start_grid_search(mask, g_flag):
 
 
 def start_training(mask, g_flag):
-    verbose, epochs, batch_size = 2, 16000, 32
-    opt, lr, actvtn, neurons, dropout_rate, weight_constraint, init_mode = 'adam', 0.001, 'relu', 50, 0.0, 0, 'uniform'
+    verbose, epochs, batch_size = 2, 16000, 100
+    opt, lr, actvtn, neurons, lstm_layers, \
+    dropout_rate, weight_constraint, init_mode = 'adam', 0.0001, 'relu', 100, 3, 0.2, 0, 'uniform'
 
     X, y, n_steps, n_features, n_output = get_data(g_flag)
 
     model = create_model(masking_value=mask, n_steps=n_steps, n_features=n_features, n_output=n_output,
-                         optimizer=opt, lr=lr, activation=actvtn, neurons=neurons, dropout_rate=dropout_rate,
-                         weight_constraint=weight_constraint, init_mode=init_mode)
+                         optimizer=opt, lr=lr, activation=actvtn, neurons=neurons, lstm_layers=lstm_layers,
+                         dropout_rate=dropout_rate, weight_constraint=weight_constraint, init_mode=init_mode)
     fit_model(model, X, y, epochs, batch_size, verbose)
 
     # save_model(model)
@@ -147,7 +170,7 @@ def start_training(mask, g_flag):
 
 def start_program():
     masking_value = -1
-    generate_data_flag = 1
+    generate_data_flag = 0
 
     # start_grid_search(masking_value, generate_data_flag)
 

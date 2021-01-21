@@ -217,7 +217,8 @@ def clean_and_normalize_data(df):
 
     # normalizing
     scaler = MinMaxScaler(feature_range=(0, 1))
-    df[df.columns] = scaler.fit_transform(df[df.columns])
+    columns_to_normalize = df.columns
+    df[columns_to_normalize] = scaler.fit_transform(df[columns_to_normalize])
     return df
 
 
